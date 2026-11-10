@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pokémon TCG Pocket - 10-Pack Extravaganza</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        poke: {
+                            yellow: '#FFCB05',
+                            blue: '#2A75BB',
+                            darkblue: '#3C5AA6',
+                            gold: '#D4AF37',
+                            cyan: '#06B6D4',
+                            magenta: '#EC4899',
+                            purple: '#8B5CF6'
+                        }
+                    },
+                    keyframes: {
+                        pulseSlow: { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.3 } },
+                        float: { '0%, 100%': { transform: 'translateY(0px)' }, '50%': { transform: 'translateY(-6px)' } },
+                        shimmer: { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
+                        godGlow: { 
+                            '0%, 100%': { filter: 'drop-shadow(0 0 15px rgba(236,72,153,0.8)) drop-shadow(0 0 30px rgba(255,203,5,0.8))' }, 
+                            '50%': { filter: 'drop-shadow(0 0 25px rgba(6,182,212,0.9)) drop-shadow(0 0 45px rgba(139,92,246,0.9))' } 
+                        }
+                    },
+                    animation: {
+                        pulseSlow: 'pulseSlow 2.5s infinite ease-in-out',
+                        float: 'float 3.5s ease-in-out infinite',
+                        shimmer: 'shimmer 2.5s linear infinite',
+                        godGlow: 'godGlow 1.2s infinite ease-in-out'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            background: #050811;
+            color: #F3F4F6;
+        }
+
+        /* 3D Holo Card Tilt Styles */
+        .holo-card-container {
+            perspective: 1000px;
+        }
+        .holo-card-inner {
+            transform-style: preserve-3d;
+            transition: transform 0.15s ease-out;
+        }
+        .holo-foil-layer {
+            position: absolute;
+            inset: 0;
+            border-radius: 0.75rem;
+            background: linear-gradient(
+                115deg, 
+                transparent 20%, 
+                rgba(255, 255, 255, 0.7) 45%, 
+                rgba(255, 0, 150, 0.5) 50%, 
+                rgba(0, 255, 255, 0.5) 55%, 
+                transparent 80%
+            );
+            background-size: 250% 250%;
+            opacity: 0;
+            mix-blend-mode: color-dodge;
+            transition: opacity 0.25s ease;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .holo-card-container:hover .holo-foil-layer, .holo-card-container.active-foil .holo-foil-layer {
+            opacity: 0.85;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .gold-border {
+            border: 1px solid rgba(212, 175, 55, 0.6);
+            box-shadow: 0 0 18px rgba(212, 175, 55, 0.25);
+        }
+
+        /* Card Flip 3D effect */
+        .card-flip-box {
+            perspective: 1000px;
+        }
+        .card-flip-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+        .card-flip-inner.is-flipped {
+            transform: rotateY(180deg);
+        }
+        .card-face-front, .card-face-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            border-radius: 0.75rem;
+        }
+        .card-face-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(212, 175, 55, 0.4);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="h-screen w-screen overflow-hidden flex flex-col justify-between max-w-md mx-auto relative shadow-2xl bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
+
+    <!-- TOP NAV BAR & RESOURCES STATUS -->
+    <header class="w-full pt-3 px-3.5 pb-2.5 z-30 flex justify-between items-center glass-panel rounded-b-2xl shadow-xl border-t-0">
+        <!-- Trainer Level & Secret Mascot Tap -->
+        <div class="flex items-center space-x-2">
+            <button id="pika-btn" onclick="handlePikaTap()" class="relative focus:outline-none transition-transform active:scale-95 group">
+                <div class="w-9 h-9 rounded-full bg-amber-400/20 border border-amber-300/40 flex items-center justify-center text-amber-300 shadow-inner group-hover:bg-amber-400/30">
+                    <i class="fa-solid fa-bolt text-base"></i>
+                </div>
+                <span id="pika-badge" class="hidden absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full border border-slate-900 animate-bounce">FEVER</span>
+            </button>
+            <div class="flex flex-col">
+                <span class="text-[9px] text-slate-400 font-extrabold tracking-wider uppercase">PTCG POCKET 50-CARD 10連抽</span>
+                <span id="player-title" class="text-xs font-black text-amber-400 truncate max-w-[110px]">新手訓練家</span>
+            </div>
+        </div>
+
+        <!-- Currencies Bar -->
+        <div class="flex items-center space-x-1.5">
+            <!-- Coins -->
+            <div class="flex items-center bg-slate-900/90 px-2 py-1 rounded-full border border-slate-700/60 shadow-inner">
+                <i class="fa-solid fa-coins text-amber-400 text-[11px] mr-1"></i>
+                <span id="coins-display" class="text-xs font-bold text-amber-200">200</span>
+            </div>
+            <!-- Hourglasses -->
+            <div class="flex items-center bg-slate-900/90 px-2 py-1 rounded-full border border-slate-700/60 shadow-inner">
+                <i class="fa-solid fa-hourglass-half text-sky-400 text-[11px] mr-1"></i>
+                <span id="sand-display" class="text-xs font-bold text-sky-200">20</span>
+            </div>
+            <!-- Shiny Dust -->
+            <div class="flex items-center bg-slate-900/90 px-2 py-1 rounded-full border border-slate-700/60 shadow-inner">
+                <i class="fa-solid fa-sparkles text-purple-400 text-[11px] mr-1"></i>
+                <span id="dust-display" class="text-xs font-bold text-purple-200">50</span>
+            </div>
+            <!-- Sound Switch Toggle -->
+            <button onclick="toggleAudio()" id="audio-btn" class="p-1.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 hover:text-white active:scale-95 transition">
+                <i id="audio-icon" class="fa-solid fa-volume-high text-xs"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN INTERACTIVE CONTAINER -->
+    <main class="flex-1 relative overflow-hidden flex flex-col">
+
+        <!-- GLOBAL TOAST NOTIFICATION -->
+        <div id="toast" class="absolute top-3 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 opacity-0 pointer-events-none -translate-y-3">
+            <div id="toast-body" class="px-4 py-1.5 rounded-full glass-panel text-xs font-bold text-emerald-300 border border-emerald-500/30 shadow-2xl flex items-center space-x-2">
+                <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                <span id="toast-msg">已自動存檔</span>
+            </div>
+        </div>
+
+        <!-- VIEW 1: HOME & 10-PACK DRAW GACHA -->
+        <section id="view-gacha" class="view-panel active h-full flex flex-col justify-between p-4 overflow-y-auto">
+            <!-- Expansion Header & Active Luck Indicators -->
+            <div class="text-center my-1">
+                <div class="flex items-center justify-center space-x-2 mb-1">
+                    <span class="inline-block px-3 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        <i class="fa-solid fa-sparkles mr-1"></i> 最強基因 A1 擴充包
+                    </span>
+                    <span id="luck-booster-badge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/30 text-purple-300 border border-purple-400/40 animate-pulse">
+                        <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> 幸運御守生效中
+                    </span>
+                </div>
+                <h1 id="pack-title" class="text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500">超夢 ex 專屬擴充包</h1>
+            </div>
+
+            <!-- Pack Artwork Stack Display -->
+            <div class="relative my-auto flex flex-col items-center justify-center">
+                <!-- Outer Ambient Aura Glow -->
+                <div id="pack-glow" class="absolute w-56 h-80 rounded-3xl bg-amber-500/20 blur-2xl transition-all duration-500"></div>
+
+                <!-- 10-Pack Stack Behind Animation FX -->
+                <div class="absolute w-48 h-72 rounded-2xl bg-indigo-900/40 border border-amber-400/20 transform -rotate-6 scale-95 opacity-70"></div>
+                <div class="absolute w-48 h-72 rounded-2xl bg-purple-900/40 border border-amber-400/20 transform rotate-6 scale-95 opacity-70"></div>
+
+                <!-- Main Foil Pack Interactive Card -->
+                <div id="pack-container" onclick="preparePackOpening()" class="relative w-52 h-80 rounded-2xl cursor-pointer group transform transition-all duration-300 hover:scale-105 active:scale-95 shadow-2xl flex flex-col justify-between overflow-hidden border border-amber-300/30 bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-950 z-10">
+                    <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-400/20 via-transparent to-transparent"></div>
+                    
+                    <!-- Top Metallic Tear Strip -->
+                    <div class="w-full h-8 bg-gradient-to-r from-amber-600 via-amber-300 to-amber-600 flex items-center justify-between px-3 border-b border-amber-200/40 shadow-md">
+                        <div class="h-2 w-2 rounded-full bg-slate-900"></div>
+                        <span class="text-[9px] font-black tracking-widest text-slate-950 uppercase">POKÉMON CARD POCKET</span>
+                        <div class="h-2 w-2 rounded-full bg-slate-900"></div>
+                    </div>
+
+                    <!-- Center Mascot Image -->
+                    <div class="relative z-10 my-auto flex flex-col items-center p-2 text-center">
+                        <div class="w-32 h-32 rounded-full bg-amber-400/10 border border-amber-400/30 flex items-center justify-center p-2 mb-2 animate-float">
+                            <img id="pack-img" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/150.png" class="w-28 h-28 object-contain filter drop-shadow-[0_10px_10px_rgba(0,0,0,0.8)]" alt="Pack Mascot">
+                        </div>
+                        <p id="pack-subtext" class="text-xs text-amber-200/80 font-medium">單抽 5 張卡 • 10連抽 50 張卡片！</p>
+                    </div>
+
+                    <!-- Bottom Foil Crimped Seal -->
+                    <div class="w-full h-10 bg-slate-900/90 border-t border-slate-700/50 flex items-center justify-between px-4">
+                        <span class="text-[10px] text-slate-400 font-bold">10包特惠連抽</span>
+                        <i class="fa-solid fa-angles-right text-amber-400 text-xs"></i>
+                    </div>
+                </div>
+
+                <!-- Pack Selection Dots -->
+                <div class="flex space-x-2 mt-4 z-20">
+                    <button onclick="switchPack('mewtwo')" class="pack-dot w-2.5 h-2.5 rounded-full bg-amber-400 transition-all"></button>
+                    <button onclick="switchPack('pikachu')" class="pack-dot w-2.5 h-2.5 rounded-full bg-slate-600 transition-all"></button>
+                    <button onclick="switchPack('charizard')" class="pack-dot w-2.5 h-2.5 rounded-full bg-slate-600 transition-all"></button>
+                </div>
+            </div>
+
+            <!-- GACHA DRAW CONTROLS (1 Pack / 5 Cards vs 10 Packs / 50 Cards) -->
+            <div class="space-y-2.5 mt-2 z-20">
+                <div class="grid grid-cols-2 gap-2.5">
+                    <!-- Single Pack Button -->
+                    <button onclick="triggerGacha(1)" class="py-3 px-3 rounded-xl font-black text-slate-950 bg-gradient-to-r from-amber-300 via-amber-400 to-yellow-500 shadow-lg shadow-amber-500/20 hover:brightness-110 active:scale-95 transition flex flex-col items-center justify-center">
+                        <div class="flex items-center space-x-1.5">
+                            <i class="fa-solid fa-box-open text-sm"></i>
+                            <span>單包開卡</span>
+                        </div>
+                        <span class="text-[10px] opacity-80 font-bold mt-0.5">1 包 (共 5 張卡) • 1 沙漏</span>
+                    </button>
+                    
+                    <!-- 10-PACK DRAW BUTTON (50 CARDS) -->
+                    <button onclick="triggerGacha(10)" class="py-3 px-3 rounded-xl font-black text-white bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 shadow-xl shadow-purple-500/30 hover:brightness-110 active:scale-95 transition flex flex-col items-center justify-center border border-purple-300/40 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                        <div class="flex items-center space-x-1.5 text-amber-300">
+                            <i class="fa-solid fa-layer-group text-sm"></i>
+                            <span class="text-white">10 連抽卡包</span>
+                        </div>
+                        <span class="text-[10px] text-amber-200 font-extrabold mt-0.5">10 包 (共 50 張卡) • 10 沙漏</span>
+                    </button>
+                </div>
+
+                <!-- Footer Quick Item Conversion -->
+                <div class="flex justify-between items-center px-1 text-[11px] text-slate-400">
+                    <span>累積開包點數: <strong id="pack-pts" class="text-amber-400 font-mono">0</strong> pt</span>
+                    <button onclick="quickUseEnergy()" class="text-sky-300 hover:text-sky-200 font-bold underline flex items-center">
+                        <i class="fa-solid fa-bolt mr-1 text-[10px]"></i>喝能量飲料 (+5 沙漏)
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 2: BINDER & COLLECTION GALLERY -->
+        <section id="view-collection" class="view-panel hidden h-full flex flex-col p-4">
+            <div class="flex justify-between items-end mb-3">
+                <div>
+                    <h2 class="text-xl font-black text-white">收藏圖鑑卡冊</h2>
+                    <p class="text-xs text-slate-400">收集進度: <span id="collect-count" class="text-amber-400 font-bold">0</span> / <span id="total-cards-count">30</span> 種</p>
+                </div>
+                <!-- Filter Tabs -->
+                <div class="flex space-x-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                    <button onclick="filterCollection('all')" class="filter-btn text-[10px] px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-bold">全部</button>
+                    <button onclick="filterCollection('rare')" class="filter-btn text-[10px] px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 font-medium">★/稀有</button>
+                    <button onclick="filterCollection('crown')" class="filter-btn text-[10px] px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 font-medium">👑 皇冠</button>
+                </div>
+            </div>
+
+            <!-- Card Grid -->
+            <div id="collection-grid" class="flex-1 overflow-y-auto grid grid-cols-3 gap-2.5 pr-1 pb-4">
+                <!-- Cards rendered dynamically -->
+            </div>
+        </section>
+
+        <!-- VIEW 3: SHOP & ACHIEVEMENTS -->
+        <section id="view-shop" class="view-panel hidden h-full flex flex-col p-4 overflow-y-auto space-y-4">
+            <!-- Subtab Buttons -->
+            <div class="flex bg-slate-800/90 p-1 rounded-xl border border-slate-700/60">
+                <button onclick="switchSubTab('shop')" id="tab-btn-shop" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-amber-400 text-slate-950 transition">道具商店</button>
+                <button onclick="switchSubTab('achievements')" id="tab-btn-achieve" class="flex-1 py-1.5 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition">成就挑戰</button>
+            </div>
+
+            <!-- SHOP SUBTAB -->
+            <div id="subtab-shop" class="space-y-3">
+                <div class="text-xs text-slate-400 font-extrabold uppercase tracking-wider">道具商城</div>
+                
+                <!-- Item 1: Pack Hourglasses -->
+                <div class="glass-panel p-3 rounded-xl flex items-center justify-between border border-slate-700/50">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-400 text-lg">
+                            <i class="fa-solid fa-hourglass-half"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white">開包沙漏 x 10</h4>
+                            <p class="text-[10px] text-slate-400">可用於開啟 10 連抽卡包</p>
+                        </div>
+                    </div>
+                    <button onclick="buyShopItem('hourglass')" class="px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold flex items-center space-x-1 active:scale-95 transition">
+                        <i class="fa-solid fa-coins text-[10px]"></i>
+                        <span>50 金幣</span>
+                    </button>
+                </div>
+
+                <!-- Item 2: Luck Booster -->
+                <div class="glass-panel p-3 rounded-xl flex items-center justify-between border border-slate-700/50">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-400 text-lg">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white">幸運御守 (Luck Booster)</h4>
+                            <p class="text-[10px] text-slate-400">大幅提升下一次 10 連抽皇冠率</p>
+                        </div>
+                    </div>
+                    <button onclick="buyShopItem('booster')" class="px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold flex items-center space-x-1 active:scale-95 transition">
+                        <i class="fa-solid fa-coins text-[10px]"></i>
+                        <span>150 金幣</span>
+                    </button>
+                </div>
+
+                <!-- Item 3: Shiny Dust Pack -->
+                <div class="glass-panel p-3 rounded-xl flex items-center justify-between border border-slate-700/50">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-pink-500/20 border border-pink-400/30 flex items-center justify-center text-pink-400 text-lg">
+                            <i class="fa-solid fa-sparkles"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white">特異閃光粉末 x 50</h4>
+                            <p class="text-[10px] text-slate-400">用於升級卡牌閃光特效</p>
+                        </div>
+                    </div>
+                    <button onclick="buyShopItem('dust')" class="px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold flex items-center space-x-1 active:scale-95 transition">
+                        <i class="fa-solid fa-coins text-[10px]"></i>
+                        <span>80 金幣</span>
+                    </button>
+                </div>
+
+                <!-- Point Exchange Section -->
+                <div class="text-xs text-slate-400 font-extrabold uppercase tracking-wider pt-2">開包點數（Pack Points）兌換處</div>
+                <div id="shop-card-exchange" class="grid grid-cols-2 gap-2"></div>
+            </div>
+
+            <!-- ACHIEVEMENTS SUBTAB -->
+            <div id="subtab-achievements" class="hidden space-y-2.5">
+                <div id="achievements-list" class="space-y-2.5"></div>
+            </div>
+        </section>
+
+        <!-- VIEW 4: LEADERBOARD & CHALLENGE DIFFICULTY -->
+        <section id="view-leaderboard" class="view-panel hidden h-full flex flex-col p-4 overflow-y-auto space-y-4">
+            <!-- Trainer Difficulty Selector -->
+            <div class="glass-panel p-3.5 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-950/30 via-slate-900 to-indigo-950/30">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-black text-amber-300 flex items-center">
+                        <i class="fa-solid fa-shield-halved mr-1.5 text-amber-400"></i> 歐氣挑戰難度
+                    </span>
+                    <span id="diff-level-name" class="text-[10px] font-bold text-sky-400">初級訓練家</span>
+                </div>
+                <div class="grid grid-cols-5 gap-1 my-2">
+                    <button onclick="setDifficulty(1)" class="diff-btn py-1 rounded bg-amber-400 text-slate-950 text-[10px] font-bold">初級</button>
+                    <button onclick="setDifficulty(2)" class="diff-btn py-1 rounded bg-slate-800 text-slate-300 text-[10px] font-bold">進階</button>
+                    <button onclick="setDifficulty(3)" class="diff-btn py-1 rounded bg-slate-800 text-slate-300 text-[10px] font-bold">館主</button>
+                    <button onclick="setDifficulty(4)" class="diff-btn py-1 rounded bg-slate-800 text-slate-300 text-[10px] font-bold">四天王</button>
+                    <button onclick="setDifficulty(5)" class="diff-btn py-1 rounded bg-slate-800 text-slate-300 text-[10px] font-bold">冠軍</button>
+                </div>
+                <div class="flex items-center justify-between bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+                    <div class="text-[11px]">
+                        <span class="text-slate-400">當前歐氣積分: </span>
+                        <strong id="luck-score" class="text-amber-400 text-xs">0 分</strong>
+                    </div>
+                    <button onclick="resetLuckChallenge()" class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 text-[11px] font-bold border border-amber-500/30 hover:bg-amber-500/30">重新挑戰</button>
+                </div>
+            </div>
+
+            <!-- Leaderboard List -->
+            <div class="flex-1 flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">本機歐氣榮譽排行榜</h3>
+                    <button onclick="resetGameData()" class="text-[10px] text-red-400 hover:underline">重置全機存檔</button>
+                </div>
+                <div id="leaderboard-list" class="space-y-2 flex-1"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 10-PACK / 50-CARD GACHA OVERLAY & SUMMARY MODAL -->
+    <div id="gacha-overlay" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl flex flex-col justify-between p-4 hidden">
+        <!-- Top Control Bar -->
+        <div class="w-full flex justify-between items-center z-10 pb-2 border-b border-slate-800">
+            <div class="flex items-center space-x-2">
+                <span id="gacha-mode-title" class="text-xs font-black text-amber-400 uppercase tracking-wider">10 連抽卡包拆封 (共 50 張卡片)</span>
+                <span id="god-pack-tag" class="hidden px-2 py-0.5 rounded-full bg-gradient-to-r from-red-600 to-pink-600 text-white text-[9px] font-black animate-bounce">GOD PACK! 神包</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button id="quick-flip-btn" onclick="quickFlipAllCards()" class="px-3 py-1 rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-bold hover:bg-amber-500/30 active:scale-95">一鍵翻開 (50張)</button>
+                <button onclick="closeGachaOverlay()" class="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 text-slate-300 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 50-Card Summary Grid & Filtering Container -->
+        <div id="drawn-cards-container" class="my-auto w-full max-h-[72vh] overflow-y-auto grid grid-cols-3 sm:grid-cols-5 gap-2.5 p-1 my-2">
+            <!-- 50 Cards or 5 Cards dynamically appended here -->
+        </div>
+
+        <!-- Summary Statistics Footer Panel -->
+        <div id="gacha-summary-panel" class="w-full glass-panel p-3 rounded-2xl border border-amber-500/30 flex flex-col space-y-2 z-10">
+            <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-300">開包獲得點數: <strong id="summary-pts-gained" class="text-amber-400 font-mono text-sm">+50</strong> pt</span>
+                <div class="flex space-x-2 text-[10px]" id="summary-breakdown">
+                    <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300">常見: <b id="count-common">0</b></span>
+                    <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30">稀有: <b id="count-rare">0</b></span>
+                    <span class="px-2 py-0.5 rounded bg-pink-500/20 text-pink-300 border border-pink-400/30">👑皇冠: <b id="count-crown">0</b></span>
+                </div>
+            </div>
+            <button id="gacha-next-btn" onclick="finishGachaOpening()" class="w-full py-3 rounded-xl font-black text-slate-950 bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 shadow-lg shadow-amber-500/20 opacity-50 cursor-not-allowed transition active:scale-95" disabled>
+                收下所有卡牌
+            </button>
+        </div>
+    </div>
+
+    <!-- 3D HOLOGRAPHIC CARD INSPECTION MODAL -->
+    <div id="card-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden" onclick="closeCardModal()">
+        <div id="modal-holo-card" class="relative w-72 h-[410px] glass-panel rounded-2xl p-4 border border-amber-400/50 flex flex-col justify-between shadow-2xl holo-card-container active-foil" onclick="event.stopPropagation()">
+            <!-- Holographic Overlay Layer -->
+            <div class="holo-foil-layer"></div>
+
+            <div class="flex justify-between items-center border-b border-slate-700/60 pb-2 z-10">
+                <span id="modal-rarity" class="text-xs font-black text-amber-300">👑 皇冠卡</span>
+                <span id="modal-hp" class="text-xs font-mono text-slate-400">HP 200</span>
+            </div>
+
+            <img id="modal-img" src="" class="w-48 h-48 object-contain mx-auto filter drop-shadow-[0_15px_15px_rgba(0,0,0,0.9)] my-auto z-10">
+
+            <div class="text-center pt-2 border-t border-slate-700/60 z-10">
+                <h3 id="modal-name" class="text-base font-black text-white">黃金超夢 ex</h3>
+                <p id="modal-desc" class="text-[10px] text-slate-300 mt-1">觸發超能念力攻擊，獲得極高歐氣評分</p>
+                <button onclick="upgradeCardEffect()" id="upgrade-effect-btn" class="mt-2 text-[10px] px-3 py-1 rounded-full bg-purple-600/30 border border-purple-400/40 text-purple-200 hover:bg-purple-600/50">
+                    <i class="fa-solid fa-sparkles mr-1"></i>消耗 20 粉末添加閃光特效
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHINY MEW SECRET EVENT POPUP MODAL -->
+    <div id="mew-event-modal" class="fixed inset-0 z-50 bg-purple-950/95 backdrop-blur-2xl flex items-center justify-center p-4 hidden" onclick="closeMewModal()">
+        <div class="text-center space-y-4 max-w-xs" onclick="event.stopPropagation()">
+            <div class="w-36 h-36 rounded-full bg-pink-500/20 border-2 border-pink-400/60 mx-auto flex items-center justify-center animate-bounce shadow-[0_0_40px_rgba(236,72,153,0.5)]">
+                <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/151.png" class="w-32 h-32 object-contain">
+            </div>
+            <h2 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-300">隱藏彩蛋：夢幻降臨！</h2>
+            <p class="text-xs text-purple-200">恭喜你收集解鎖超強圖鑑！夢幻被你的歐氣吸引，贈送你 500 金幣與專屬成就徽章！</p>
+            <button onclick="closeMewModal()" class="w-full py-2.5 rounded-xl font-bold bg-pink-500 text-slate-950 shadow-lg">收下夢幻的禮物</button>
+        </div>
+    </div>
+
+    <!-- BOTTOM NAVIGATION BAR -->
+    <nav class="w-full glass-panel border-b-0 border-x-0 rounded-t-2xl py-2 px-3 z-30 flex justify-around items-center">
+        <button onclick="navTo('gacha')" id="nav-gacha" class="nav-item active flex flex-col items-center text-amber-400">
+            <i class="fa-solid fa-box-open text-base mb-0.5"></i>
+            <span class="text-[10px] font-bold">抽卡</span>
+        </button>
+        <button onclick="navTo('collection')" id="nav-collection" class="nav-item flex flex-col items-center text-slate-400 hover:text-white">
+            <i class="fa-solid fa-book-open text-base mb-0.5"></i>
+            <span class="text-[10px] font-bold">卡冊</span>
+        </button>
+        <button onclick="navTo('shop')" id="nav-shop" class="nav-item flex flex-col items-center text-slate-400 hover:text-white relative">
+            <i class="fa-solid fa-store text-base mb-0.5"></i>
+            <span class="text-[10px] font-bold">商店/成就</span>
+            <span id="achieve-badge" class="hidden absolute top-0 right-3 w-2 h-2 rounded-full bg-red-500"></span>
+        </button>
+        <button onclick="navTo('leaderboard')" id="nav-leaderboard" class="nav-item flex flex-col items-center text-slate-400 hover:text-white">
+            <i class="fa-solid fa-chart-simple text-base mb-0.5"></i>
+            <span class="text-[10px] font-bold">排行榜</span>
+        </button>
+    </nav>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        /* ------------------------------------------------------------------ */
+        /* 1. EXPANDED POKEMON CARD DATABASE (>30 Distinct Cards)             */
+        /* ------------------------------------------------------------------ */
+        const POKEMON_DB = [
+            // 1-Diamond (Common)
+            { id: 1, name: "妙蛙種子", rarity: "◆", type: "grass", hp: 70, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/1.png", pts: 10 },
+            { id: 4, name: "小火龍", rarity: "◆", type: "fire", hp: 60, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/4.png", pts: 10 },
+            { id: 7, name: "傑尼龜", rarity: "◆", type: "water", hp: 60, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png", pts: 10 },
+            { id: 25, name: "皮卡丘", rarity: "◆", type: "electric", hp: 60, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png", pts: 10 },
+            { id: 133, name: "伊布", rarity: "◆", type: "colorless", hp: 60, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/133.png", pts: 10 },
+            { id: 16, name: "波波", rarity: "◆", type: "colorless", hp: 50, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/16.png", pts: 10 },
+            { id: 19, name: "小拉達", rarity: "◆", type: "colorless", hp: 40, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/19.png", pts: 10 },
+            { id: 52, name: "喵喵", rarity: "◆", type: "colorless", hp: 60, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/52.png", pts: 10 },
+            { id: 54, name: "可達鴨", rarity: "◆", type: "water", hp: 70, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/54.png", pts: 10 },
+
+            // 2-Diamond & 3-Diamond (Uncommon)
+            { id: 2, name: "妙蛙草", rarity: "◆◆", type: "grass", hp: 90, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/2.png", pts: 35 },
+            { id: 5, name: "火恐龍", rarity: "◆◆", type: "fire", hp: 80, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/5.png", pts: 35 },
+            { id: 8, name: "卡咪龜", rarity: "◆◆", type: "water", hp: 80, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/8.png", pts: 35 },
+            { id: 26, name: "雷丘", rarity: "◆◆", type: "electric", hp: 100, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/26.png", pts: 35 },
+            { id: 143, name: "卡比獸", rarity: "◆◆◆", type: "colorless", hp: 150, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/143.png", pts: 70 },
+
+            // 4-Diamond & 1-Star (Rare ex & Art Cards)
+            { id: 3, name: "妙蛙花 ex", rarity: "◆◆◆◆", type: "grass", hp: 190, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/3.png", pts: 150 },
+            { id: 6, name: "噴火龍 ex", rarity: "◆◆◆◆", type: "fire", hp: 180, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/6.png", pts: 150 },
+            { id: 9, name: "水箭龜 ex", rarity: "◆◆◆◆", type: "water", hp: 180, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/9.png", pts: 150 },
+            { id: 150, name: "超夢 ex", rarity: "★", type: "psychic", hp: 150, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/150.png", pts: 150 },
+            { id: 149, name: "快龍", rarity: "★", type: "dragon", hp: 160, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/149.png", pts: 150 },
+            { id: 94, name: "耿鬼 ex", rarity: "★", type: "psychic", hp: 130, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/94.png", pts: 150 },
+            { id: 130, name: "暴鯉龍 ex", rarity: "★", type: "water", hp: 170, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/130.png", pts: 150 },
+            { id: 144, name: "急凍鳥 ex", rarity: "★", type: "water", hp: 140, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/144.png", pts: 150 },
+            { id: 282, name: "沙奈朵", rarity: "★", type: "psychic", hp: 110, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/282.png", pts: 150 },
+
+            // 2-Star & 3-Star (Ultra Rare / Immersive)
+            { id: 151, name: "夢幻 (全圖秘藏)", rarity: "★★", type: "psychic", hp: 120, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/151.png", pts: 300 },
+            { id: 250, name: "鳳王 ex", rarity: "★★", type: "fire", hp: 190, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/250.png", pts: 300 },
+            { id: 249, name: "洛奇亞 ex", rarity: "★★", type: "water", hp: 190, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/249.png", pts: 300 },
+            { id: 384, name: "烈空坐 ex (實景沉浸)", rarity: "★★★", type: "dragon", hp: 200, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/384.png", pts: 400 },
+            { id: 257, name: "火焰雞 ex", rarity: "★★", type: "fire", hp: 170, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/257.png", pts: 300 },
+
+            // CROWN CARDS (👑 Gold Foil Rare)
+            { id: 1001, name: "金色黃金超夢 ex", rarity: "👑", type: "psychic", hp: 200, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/150.png", isCrown: true, pts: 500 },
+            { id: 1002, name: "金色黃金噴火龍 ex", rarity: "👑", type: "fire", hp: 220, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/6.png", isCrown: true, pts: 500 },
+            { id: 1003, name: "金色黃金皮卡丘 ex", rarity: "👑", type: "electric", hp: 150, img: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png", isCrown: true, pts: 500 }
+        ];
+
+        // Achievements Definition
+        const ACHIEVEMENTS_DEF = [
+            { id: 'first_draw', title: '新手上路', desc: '完成第一次開卡包', rewardCoins: 50, req: (s) => s.totalDraws >= 1 },
+            { id: 'draw_10_packs', title: '十連抽狂暴者', desc: '完成一次 10 連抽 (50張卡片)', rewardCoins: 150, req: (s) => s.tenPackCount >= 1 },
+            { id: 'collect_15', title: '圖鑑大師', desc: '收集 15 種不同寶可夢卡牌', rewardCoins: 200, req: (s) => Object.keys(s.inventory).length >= 15 },
+            { id: 'first_crown', title: '王者降臨', desc: '抽中第一張 👑 皇冠稀有金卡', rewardCoins: 300, req: (s) => s.crownCount >= 1 },
+            { id: 'god_pack', title: '神包天選之人', desc: '幸運觸發 0.05% God Pack 神包事件', rewardCoins: 500, req: (s) => s.godPackTriggered >= 1 }
+        ];
+
+        /* ------------------------------------------------------------------ */
+        /* 2. GAME STATE & AUDIO ENGINE                                       */
+        /* ------------------------------------------------------------------ */
+        let state = {
+            coins: 200,
+            hourglasses: 20,
+            shinyDust: 50,
+            packPoints: 0,
+            totalDraws: 0,
+            tenPackCount: 0,
+            crownCount: 0,
+            godPackTriggered: 0,
+            luckScore: 0,
+            difficulty: 1,
+            luckBoosterActive: false,
+            claimedAchievements: [],
+            inventory: {}, // cardId: count
+            upgradedCards: [], // cardIds with shine dust
+            title: "新手訓練家"
+        };
+
+        let currentPackType = 'mewtwo';
+        let drawnCardsTemp = [];
+        let pikaTapCount = 0;
+        let isFeverActive = false;
+        let feverTimeout = null;
+        let audioEnabled = true;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!audioEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'rip') {
+                // White noise rip sound simulation
+                const bufferSize = audioCtx.sampleRate * 0.2;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+                const noiseFilter = audioCtx.createBiquadFilter();
+                noiseFilter.type = 'bandpass';
+                noiseFilter.frequency.value = 1000;
+                noise.connect(noiseFilter);
+                noiseFilter.connect(gain);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                noise.start(now);
+            } else if (type === 'flip') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'rare') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'crown') {
+                // Fanfare triad sound
+                const freqs = [523.25, 659.25, 783.99, 1046.50];
+                freqs.forEach((f, idx) => {
+                    const subOsc = audioCtx.createOscillator();
+                    const subGain = audioCtx.createGain();
+                    subOsc.connect(subGain);
+                    subGain.connect(audioCtx.destination);
+                    subOsc.type = 'triangle';
+                    subOsc.frequency.setValueAtTime(f, now + idx * 0.06);
+                    subGain.gain.setValueAtTime(0.25, now + idx * 0.06);
+                    subGain.gain.exponentialRampToValueAtTime(0.01, now + 0.6 + idx * 0.06);
+                    subOsc.start(now + idx * 0.06);
+                    subOsc.stop(now + 0.6 + idx * 0.06);
+                });
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const icon = document.getElementById('audio-icon');
+            icon.className = audioEnabled ? "fa-solid fa-volume-high text-xs" : "fa-solid fa-volume-xmark text-xs text-red-400";
+            showToast(audioEnabled ? "音效已開啟" : "音效已靜音");
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* 3. SAVE / LOAD STATE (localStorage)                                */
+        /* ------------------------------------------------------------------ */
+        function saveGame() {
+            try {
+                localStorage.setItem('ptcg_pocket_10pack_save', JSON.stringify(state));
+                showToast("進度已自動儲存");
+            } catch (e) {
+                console.error("Save error", e);
+            }
+        }
+
+        function loadGame() {
+            try {
+                const saved = localStorage.getItem('ptcg_pocket_10pack_save');
+                if (saved) {
+                    state = Object.assign(state, JSON.parse(saved));
+                }
+            } catch (e) {
+                console.error("Load error", e);
+            }
+            updateUI();
+        }
+
+        function resetGameData() {
+            if (confirm("確定要重置所有抽卡進度與卡冊嗎？此動作不可逆！")) {
+                localStorage.removeItem('ptcg_pocket_10pack_save');
+                location.reload();
+            }
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* 4. GACHA LOGIC (1 Pack = 5 Cards, 10 Packs = 50 Cards Exact)       */
+        /* ------------------------------------------------------------------ */
+        function preparePackOpening() {
+            // Default clicking the main pack artwork triggers a 10-Pack draw
+            triggerGacha(10);
+        }
+
+        function getRandomCard(isGodPack = false) {
+            if (isGodPack) {
+                const rarePool = POKEMON_DB.filter(c => c.isCrown || c.rarity.includes('★') || c.rarity === '◆◆◆◆');
+                return rarePool[Math.floor(Math.random() * rarePool.length)];
+            }
+
+            const rand = Math.random() * 100;
+            let crownRate = state.luckBoosterActive ? 12 : (isFeverActive ? 8 : 2);
+            let starRate = state.luckBoosterActive ? 30 : (isFeverActive ? 25 : 12);
+            let dblDiamondRate = 28;
+
+            if (rand < crownRate) {
+                const crowns = POKEMON_DB.filter(c => c.isCrown);
+                return crowns[Math.floor(Math.random() * crowns.length)];
+            } else if (rand < crownRate + starRate) {
+                const stars = POKEMON_DB.filter(c => c.rarity.includes('★') || c.rarity === '◆◆◆◆');
+                return stars[Math.floor(Math.random() * stars.length)];
+            } else if (rand < crownRate + starRate + dblDiamondRate) {
+                const dbls = POKEMON_DB.filter(c => c.rarity === '◆◆' || c.rarity === '◆◆◆');
+                return dbls[Math.floor(Math.random() * dbls.length)];
+            } else {
+                const commons = POKEMON_DB.filter(c => c.rarity === '◆');
+                return commons[Math.floor(Math.random() * commons.length)];
+            }
+        }
+
+        function triggerGacha(packCount) {
+            // packCount = 1 -> 5 Cards, packCount = 10 -> 50 Cards Exact
+            const requiredHourglasses = packCount; 
+            const totalCardsToDraw = packCount * 5;
+
+            if (state.hourglasses < requiredHourglasses) {
+                showToast(`沙漏不足 ${requiredHourglasses} 個！可在商店購買或喝飲料補充`);
+                playSound('click');
+                return;
+            }
+
+            state.hourglasses -= requiredHourglasses;
+            playSound('rip');
+
+            const isGodPack = Math.random() < 0.05 || (state.luckBoosterActive && Math.random() < 0.25);
+            if (isGodPack) {
+                state.godPackTriggered += 1;
+                document.getElementById('god-pack-tag').classList.remove('hidden');
+                showToast("🎉 爆發！觸發超罕見 GOD PACK 神包！全 50 張卡片包含高機率神卡！");
+                playSound('crown');
+                confetti({ particleCount: 150, spread: 90, origin: { y: 0.5 } });
+            } else {
+                document.getElementById('god-pack-tag').classList.add('hidden');
+            }
+
+            drawnCardsTemp = [];
+            // Draw exact 50 cards for 10-pack, 5 cards for single pack
+            for(let i = 0; i < totalCardsToDraw; i++) {
+                drawnCardsTemp.push(getRandomCard(isGodPack));
+            }
+
+            state.totalDraws += packCount;
+            if (packCount === 10) state.tenPackCount += 1;
+            state.packPoints += packCount * 5; // +50 pts for 10 packs
+            state.coins += packCount * 12;
+
+            if (state.luckBoosterActive) {
+                state.luckBoosterActive = false;
+                document.getElementById('luck-booster-badge').classList.add('hidden');
+            }
+
+            // Stats calculation
+            const diffMultiplier = state.difficulty * 0.5 + 0.5;
+            drawnCardsTemp.forEach(c => {
+                state.inventory[c.id] = (state.inventory[c.id] || 0) + 1;
+                if (c.isCrown) state.crownCount += 1;
+                state.luckScore += Math.round((c.isCrown ? 100 : (c.rarity.includes('★') ? 40 : 10)) * diffMultiplier);
+            });
+
+            // Check Mew secret easter egg trigger (>100 cards total collected)
+            const totalOwnedCount = Object.values(state.inventory).reduce((a, b) => a + b, 0);
+            if (totalOwnedCount >= 100 && !state.mewEventTriggered) {
+                state.mewEventTriggered = true;
+                setTimeout(() => {
+                    document.getElementById('mew-event-modal').classList.remove('hidden');
+                    playSound('crown');
+                    confetti({ particleCount: 150, spread: 100 });
+                }, 1000);
+            }
+
+            renderGachaOverlay(packCount, totalCardsToDraw);
+            saveGame();
+            updateUI();
+        }
+
+        /* RENDER 50-CARD / 5-CARD GACHA OVERLAY & SUMMARY */
+        function renderGachaOverlay(packCount, totalCardsToDraw) {
+            const overlay = document.getElementById('gacha-overlay');
+            const container = document.getElementById('drawn-cards-container');
+            const nextBtn = document.getElementById('gacha-next-btn');
+            const title = document.getElementById('gacha-mode-title');
+            const summaryPts = document.getElementById('summary-pts-gained');
+
+            title.textContent = packCount === 10 
+                ? `10 連抽卡包拆封 (共 50 張卡片)` 
+                : `單包卡包拆封 (共 5 張卡片)`;
+            summaryPts.textContent = `+${packCount * 5}`;
+
+            container.innerHTML = '';
+            nextBtn.disabled = true;
+            nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            let commonCount = 0, rareCount = 0, crownCount = 0;
+
+            drawnCardsTemp.forEach((card, index) => {
+                if (card.isCrown) crownCount++;
+                else if (card.rarity.includes('★') || card.rarity === '◆◆◆◆') rareCount++;
+                else commonCount++;
+
+                const cardEl = document.createElement('div');
+                cardEl.className = "card-flip-box aspect-[3/4] cursor-pointer group";
+
+                const isUpgraded = state.upgradedCards.includes(card.id);
+
+                cardEl.innerHTML = `
+                    <div class="card-flip-inner shadow-lg">
+                        <!-- BACK FACE (Unrevealed) -->
+                        <div class="card-face-front bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 border border-amber-400/40 p-2 flex flex-col items-center justify-center text-center">
+                            <i class="fa-solid fa-shield-cat text-amber-400 text-xl mb-1 opacity-80 group-hover:scale-110 transition"></i>
+                            <span class="text-[9px] font-black text-slate-300">#${index + 1}</span>
+                        </div>
+                        <!-- FRONT FACE (Revealed) -->
+                        <div class="card-face-back bg-slate-900 border ${card.isCrown ? 'border-amber-400 gold-border' : 'border-slate-700/80'} p-1.5 flex flex-col justify-between ${isUpgraded ? 'animate-pulse' : ''}">
+                            <div class="flex justify-between items-center text-[8px]">
+                                <span class="font-extrabold text-amber-300">${card.rarity}</span>
+                                <span class="text-slate-400 font-mono">HP${card.hp}</span>
+                            </div>
+                            <img src="${card.img}" class="w-12 h-12 object-contain mx-auto filter drop-shadow">
+                            <div class="text-center">
+                                <p class="text-[9px] font-black text-white truncate">${card.name}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                cardEl.onclick = () => {
+                    const inner = cardEl.querySelector('.card-flip-inner');
+                    if (!inner.classList.contains('is-flipped')) {
+                        inner.classList.add('is-flipped');
+                        playSound(card.isCrown ? 'crown' : (card.rarity.includes('★') ? 'rare' : 'flip'));
+
+                        if (card.isCrown) {
+                            confetti({ particleCount: 40, spread: 40, origin: { y: 0.6 } });
+                        }
+                        checkAllFlipped();
+                    } else {
+                        openCardModal(card);
+                    }
+                };
+
+                container.appendChild(cardEl);
+            });
+
+            document.getElementById('count-common').textContent = commonCount;
+            document.getElementById('count-rare').textContent = rareCount;
+            document.getElementById('count-crown').textContent = crownCount;
+
+            overlay.classList.remove('hidden');
+        }
+
+        function quickFlipAllCards() {
+            playSound('rare');
+            const container = document.getElementById('drawn-cards-container');
+            const inners = container.querySelectorAll('.card-flip-inner');
+            inners.forEach(inner => inner.classList.add('is-flipped'));
+            checkAllFlipped();
+        }
+
+        function checkAllFlipped() {
+            const container = document.getElementById('drawn-cards-container');
+            const inners = container.querySelectorAll('.card-flip-inner');
+            const allFlipped = Array.from(inners).every(el => el.classList.contains('is-flipped'));
+            
+            const nextBtn = document.getElementById('gacha-next-btn');
+            if (allFlipped) {
+                nextBtn.disabled = false;
+                nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function finishGachaOpening() {
+            playSound('click');
+            document.getElementById('gacha-overlay').classList.add('hidden');
+            updateUI();
+        }
+
+        function closeGachaOverlay() {
+            document.getElementById('gacha-overlay').classList.add('hidden');
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* 5. 3D HOLOGRAPHIC CARD INSPECTION & EFFECTS                        */
+        /* ------------------------------------------------------------------ */
+        let currentInspectedCard = null;
+
+        function openCardModal(card) {
+            currentInspectedCard = card;
+            playSound('click');
+            document.getElementById('modal-rarity').textContent = `${card.rarity} 稀有度`;
+            document.getElementById('modal-hp').textContent = `HP ${card.hp}`;
+            document.getElementById('modal-img').src = card.img;
+            document.getElementById('modal-name').textContent = card.name;
+            document.getElementById('modal-desc').textContent = card.isCrown 
+                ? "👑 尊榮全圖黃金卡，極致光雕效果" 
+                : `屬性: ${card.type.toUpperCase()} | 點數價值: ${card.pts} pt`;
+            
+            document.getElementById('card-modal').classList.remove('hidden');
+
+            // Attach 3D tilt movement logic
+            const modalCard = document.getElementById('modal-holo-card');
+            modalCard.onmousemove = (e) => {
+                const rect = modalCard.getBoundingClientRect();
+                const x = e.clientX - rect.left - rect.width / 2;
+                const y = e.clientY - rect.top - rect.height / 2;
+                modalCard.style.transform = `rotateY(${x / 10}deg) rotateX(${-y / 10}deg)`;
+            };
+            modalCard.onmouseleave = () => {
+                modalCard.style.transform = `rotateY(0deg) rotateX(0deg)`;
+            };
+        }
+
+        function closeCardModal() {
+            document.getElementById('card-modal').classList.add('hidden');
+        }
+
+        function upgradeCardEffect() {
+            if (!currentInspectedCard) return;
+            if (state.shinyDust >= 20) {
+                state.shinyDust -= 20;
+                if (!state.upgradedCards.includes(currentInspectedCard.id)) {
+                    state.upgradedCards.push(currentInspectedCard.id);
+                }
+                playSound('crown');
+                confetti({ particleCount: 60, spread: 60 });
+                showToast(`已為 ${currentInspectedCard.name} 添加耀眼閃光特效！`);
+                saveGame();
+                updateUI();
+                closeCardModal();
+            } else {
+                showToast("特異閃光粉末不足 (需 20 粉末)");
+            }
+        }
+
+        function closeMewModal() {
+            state.coins += 500;
+            document.getElementById('mew-event-modal').classList.add('hidden');
+            saveGame();
+            updateUI();
+        }
+
+        /* SECRET PIKACHU TAP FEVER MODE */
+        function handlePikaTap() {
+            pikaTapCount++;
+            playSound('click');
+            if (pikaTapCount >= 5 && !isFeverActive) {
+                triggerFeverMode();
+                pikaTapCount = 0;
+            } else {
+                showToast(`⚡ 皮卡丘狂熱點擊... (${pikaTapCount}/5)`);
+            }
+        }
+
+        function triggerFeverMode() {
+            isFeverActive = true;
+            playSound('crown');
+            confetti({ particleCount: 120, spread: 100, origin: { y: 0.4 } });
+
+            const badge = document.getElementById('pika-badge');
+            const packContainer = document.getElementById('pack-container');
+            badge.classList.remove('hidden');
+            packContainer.classList.add('animate-godGlow', 'border-pink-500');
+
+            showToast("🔥 黃金 Fever 狂熱開啟！10連抽皇冠率爆發 (持續 15 秒)");
+
+            if (feverTimeout) clearTimeout(feverTimeout);
+            feverTimeout = setTimeout(() => {
+                isFeverActive = false;
+                badge.classList.add('hidden');
+                packContainer.classList.remove('animate-godGlow', 'border-pink-500');
+                showToast("Fever 狂熱已結束");
+            }, 15000);
+        }
+
+        function quickUseEnergy() {
+            if (state.coins >= 30) {
+                state.coins -= 30;
+                state.hourglasses += 5;
+                playSound('rare');
+                showToast("喝下能量飲料！補充 +5 開包沙漏！");
+            } else {
+                showToast("金幣不足 (需要 30 金幣)");
+            }
+            saveGame();
+            updateUI();
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* 6. SHOP & ACHIEVEMENTS LOGIC                                       */
+        /* ------------------------------------------------------------------ */
+        function buyShopItem(itemType) {
+            if (itemType === 'hourglass') {
+                if (state.coins >= 50) {
+                    state.coins -= 50;
+                    state.hourglasses += 10;
+                    playSound('rare');
+                    showToast("購買成功：開包沙漏 +10！");
+                } else showToast("金幣不足！");
+            } else if (itemType === 'booster') {
+                if (state.coins >= 150) {
+                    state.coins -= 150;
+                    state.luckBoosterActive = true;
+                    document.getElementById('luck-booster-badge').classList.remove('hidden');
+                    playSound('crown');
+                    showToast("已裝備幸運御守！下一次 10 連抽大提升！");
+                } else showToast("金幣不足！");
+            } else if (itemType === 'dust') {
+                if (state.coins >= 80) {
+                    state.coins -= 80;
+                    state.shinyDust += 50;
+                    playSound('rare');
+                    showToast("購買成功：特異粉末 +50！");
+                } else showToast("金幣不足！");
+            }
+            saveGame();
+            updateUI();
+        }
+
+        function exchangeCardWithPts(cardId) {
+            const card = POKEMON_DB.find(c => c.id === cardId);
+            if (!card) return;
+            if (state.packPoints >= card.pts) {
+                state.packPoints -= card.pts;
+                state.inventory[card.id] = (state.inventory[card.id] || 0) + 1;
+                playSound('rare');
+                showToast(`成功兌換 ${card.name}！`);
+            } else showToast("開包點數不足！");
+            saveGame();
+            updateUI();
+        }
+
+        function claimAchievement(achId) {
+            const ach = ACHIEVEMENTS_DEF.find(a => a.id === achId);
+            if (!ach || state.claimedAchievements.includes(achId)) return;
+
+            if (ach.req(state)) {
+                state.claimedAchievements.push(achId);
+                state.coins += ach.rewardCoins;
+                playSound('crown');
+                confetti({ particleCount: 60, spread: 60 });
+                showToast(`領取成就獎勵 +${ach.rewardCoins} 金幣！`);
+                saveGame();
+                updateUI();
+            }
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* 7. NAVIGATION & UI UPDATES                                         */
+        /* ------------------------------------------------------------------ */
+        function setDifficulty(lvl) {
+            playSound('click');
+            state.difficulty = lvl;
+            const names = ["初級訓練家", "進階訓練家", "館主級挑戰", "四天王大師", "聯盟冠軍"];
+            document.getElementById('diff-level-name').textContent = names[lvl - 1];
+            
+            const btns = document.querySelectorAll('.diff-btn');
+            btns.forEach((btn, idx) => {
+                btn.className = idx === lvl - 1 
+                    ? "diff-btn py-1 rounded bg-amber-400 text-slate-950 text-[10px] font-bold"
+                    : "diff-btn py-1 rounded bg-slate-800 text-slate-300 text-[10px] font-bold";
+            });
+            saveGame();
+        }
+
+        function navTo(viewId) {
+            playSound('click');
+            document.querySelectorAll('.view-panel').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('text-amber-400', 'active'));
+
+            document.getElementById(`view-${viewId}`).classList.remove('hidden');
+            document.getElementById(`nav-${viewId}`).classList.add('text-amber-400', 'active');
+
+            if (viewId === 'collection') renderCollection();
+            if (viewId === 'shop') renderShopAndAchievements();
+            if (viewId === 'leaderboard') renderLeaderboard();
+        }
+
+        function switchSubTab(tab) {
+            playSound('click');
+            const shopTab = document.getElementById('subtab-shop');
+            const achieveTab = document.getElementById('subtab-achievements');
+            const btnShop = document.getElementById('tab-btn-shop');
+            const btnAchieve = document.getElementById('tab-btn-achieve');
+
+            if (tab === 'shop') {
+                shopTab.classList.remove('hidden');
+                achieveTab.classList.add('hidden');
+                btnShop.className = "flex-1 py-1.5 text-xs font-bold rounded-lg bg-amber-400 text-slate-950 transition";
+                btnAchieve.className = "flex-1 py-1.5 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition";
+            } else {
+                shopTab.classList.add('hidden');
+                achieveTab.classList.remove('hidden');
+                btnAchieve.className = "flex-1 py-1.5 text-xs font-bold rounded-lg bg-amber-400 text-slate-950 transition";
+                btnShop.className = "flex-1 py-1.5 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition";
+            }
+        }
+
+        function filterCollection(filter) {
+            playSound('click');
+            renderCollection(filter);
+        }
+
+        function renderCollection(filter = 'all') {
+            const grid = document.getElementById('collection-grid');
+            grid.innerHTML = '';
+
+            let filtered = POKEMON_DB;
+            if (filter === 'rare') filtered = POKEMON_DB.filter(c => c.rarity.includes('★') || c.rarity === '◆◆◆◆');
+            if (filter === 'crown') filtered = POKEMON_DB.filter(c => c.isCrown);
+
+            filtered.forEach(card => {
+                const count = state.inventory[card.id] || 0;
+                const isUpgraded = state.upgradedCards.includes(card.id);
+                const cardEl = document.createElement('div');
+                cardEl.className = `relative aspect-[3/4] rounded-xl p-2 glass-panel border flex flex-col justify-between transition-all ${count > 0 ? (card.isCrown ? 'border-amber-400 gold-border shadow-lg shadow-amber-500/10' : 'border-slate-700/60') : 'opacity-40 grayscale'}`;
+
+                cardEl.innerHTML = `
+                    <div class="flex justify-between items-center text-[9px]">
+                        <span class="font-bold text-amber-300">${card.rarity}</span>
+                        <span class="text-slate-400 font-bold">${count > 0 ? 'x'+count : '未獲得'}</span>
+                    </div>
+                    <img src="${card.img}" class="w-12 h-12 object-contain mx-auto filter drop-shadow cursor-pointer ${isUpgraded ? 'animate-bounce' : ''}" onclick="openCardModal(POKEMON_DB.find(c => c.id===${card.id}))">
+                    <div class="text-center">
+                        <p class="text-[10px] font-bold text-white truncate">${card.name}</p>
+                    </div>
+                `;
+
+                grid.appendChild(cardEl);
+            });
+
+            const ownedTypes = Object.keys(state.inventory).length;
+            document.getElementById('collect-count').textContent = ownedTypes;
+            document.getElementById('total-cards-count').textContent = POKEMON_DB.length;
+        }
+
+        function renderShopAndAchievements() {
+            const exchangeGrid = document.getElementById('shop-card-exchange');
+            exchangeGrid.innerHTML = '';
+            
+            const rareCards = POKEMON_DB.filter(c => c.pts >= 150);
+            rareCards.forEach(card => {
+                const cardEl = document.createElement('div');
+                cardEl.className = "glass-panel p-2 rounded-xl flex flex-col justify-between border border-slate-700/50";
+                cardEl.innerHTML = `
+                    <div class="flex items-center space-x-2 mb-2">
+                        <img src="${card.img}" class="w-8 h-8 object-contain">
+                        <div class="truncate">
+                            <h5 class="text-[11px] font-bold text-white truncate">${card.name}</h5>
+                            <span class="text-[9px] text-amber-400 font-bold">${card.pts} pt</span>
+                        </div>
+                    </div>
+                    <button onclick="exchangeCardWithPts(${card.id})" class="w-full py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold active:scale-95 transition">
+                        兌換卡牌
+                    </button>
+                `;
+                exchangeGrid.appendChild(cardEl);
+            });
+
+            const achList = document.getElementById('achievements-list');
+            achList.innerHTML = '';
+            let hasUnclaimed = false;
+
+            ACHIEVEMENTS_DEF.forEach(ach => {
+                const isClaimed = state.claimedAchievements.includes(ach.id);
+                const isReady = ach.req(state) && !isClaimed;
+                if (isReady) hasUnclaimed = true;
+
+                const item = document.createElement('div');
+                item.className = "glass-panel p-3 rounded-xl flex items-center justify-between border border-slate-700/50";
+                item.innerHTML = `
+                    <div>
+                        <div class="flex items-center space-x-1.5">
+                            <h4 class="text-xs font-bold text-white">${ach.title}</h4>
+                            <span class="text-[9px] font-bold text-amber-300 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">+${ach.rewardCoins} 金幣</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-0.5">${ach.desc}</p>
+                    </div>
+                    <button onclick="claimAchievement('${ach.id}')" 
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${isClaimed ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : (isReady ? 'bg-amber-400 text-slate-950 animate-bounce' : 'bg-slate-800 text-slate-400 cursor-not-allowed')}"
+                        ${!isReady || isClaimed ? 'disabled' : ''}>
+                        ${isClaimed ? '已領取' : '領取獎勵'}
+                    </button>
+                `;
+                achList.appendChild(item);
+            });
+
+            const badge = document.getElementById('achieve-badge');
+            if (hasUnclaimed) badge.classList.remove('hidden');
+            else badge.classList.add('hidden');
+        }
+
+        function renderLeaderboard() {
+            const list = document.getElementById('leaderboard-list');
+            list.innerHTML = '';
+
+            const localRecords = [
+                { name: "玩家 (你)", score: state.luckScore, pulls: state.totalDraws, crowns: state.crownCount },
+                { name: "赤紅 Red", score: 1450, pulls: 45, crowns: 4 },
+                { name: "青綠 Green", score: 980, pulls: 32, crowns: 2 },
+                { name: "竹蘭 Cynthia", score: 720, pulls: 24, crowns: 2 }
+            ].sort((a, b) => b.score - a.score);
+
+            localRecords.forEach((rec, idx) => {
+                const item = document.createElement('div');
+                item.className = `glass-panel p-2.5 rounded-xl flex items-center justify-between border ${idx === 0 ? 'border-amber-400/50 bg-amber-500/10' : 'border-slate-800'}`;
+                item.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <span class="w-5 text-center font-black text-xs ${idx === 0 ? 'text-amber-400' : 'text-slate-500'}">#${idx + 1}</span>
+                        <div>
+                            <p class="text-xs font-bold text-white">${rec.name}</p>
+                            <p class="text-[9px] text-slate-400">總開包: ${rec.pulls} 包 • 👑 皇冠: ${rec.crowns} 張</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs font-black text-amber-300">${rec.score} pt</span>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+
+            document.getElementById('luck-score').textContent = `${state.luckScore} 分`;
+        }
+
+        function resetLuckChallenge() {
+            playSound('click');
+            state.luckScore = 0;
+            saveGame();
+            updateUI();
+            showToast("歐氣分數已重置，開始新一輪挑戰！");
+        }
+
+        function switchPack(pack) {
+            playSound('click');
+            currentPackType = pack;
+            const img = document.getElementById('pack-img');
+            const title = document.getElementById('pack-title');
+            const dots = document.querySelectorAll('.pack-dot');
+
+            dots.forEach(d => d.className = "pack-dot w-2.5 h-2.5 rounded-full bg-slate-600 transition-all");
+
+            if (pack === 'mewtwo') {
+                img.src = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/150.png";
+                title.textContent = "超夢 ex 專屬擴充包";
+                dots[0].className = "pack-dot w-2.5 h-2.5 rounded-full bg-amber-400 transition-all";
+            } else if (pack === 'pikachu') {
+                img.src = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png";
+                title.textContent = "皮卡丘 ex 專屬擴充包";
+                dots[1].className = "pack-dot w-2.5 h-2.5 rounded-full bg-amber-400 transition-all";
+            } else {
+                img.src = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/6.png";
+                title.textContent = "噴火龍 ex 專屬擴充包";
+                dots[2].className = "pack-dot w-2.5 h-2.5 rounded-full bg-amber-400 transition-all";
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            toastMsg.textContent = msg;
+            toast.classList.remove('opacity-0', '-translate-y-3');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-3');
+            }, 2200);
+        }
+
+        function updateUI() {
+            document.getElementById('coins-display').textContent = state.coins;
+            document.getElementById('sand-display').textContent = state.hourglasses;
+            document.getElementById('dust-display').textContent = state.shinyDust;
+            document.getElementById('pack-pts').textContent = state.packPoints;
+
+            if (state.crownCount >= 3) state.title = "殿堂級大師";
+            else if (state.totalDraws >= 20) state.title = "資深訓練家";
+            else if (state.totalDraws >= 5) state.title = "新銳訓練家";
+            document.getElementById('player-title').textContent = state.title;
+
+            if (state.luckBoosterActive) {
+                document.getElementById('luck-booster-badge').classList.remove('hidden');
+            }
+        }
+
+        /* INITIALIZATION ON WINDOW LOAD */
+        window.onload = function() {
+            loadGame();
+            renderShopAndAchievements();
+        };
+    </script>
+</body>
+</html>
